@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Re:Cycle Tracker — 학교 업사이클링 대시보드</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#2dd4bf; --glass: rgba(255,255,255,0.04);
+      --glass-2: rgba(255,255,255,0.03);
+      --radius:12px; --gap:18px; --container-max:1100px;
+      color-scheme: dark;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,Apple SD Gothic Neo,Segoe UI,Roboto,'Noto Sans KR',sans-serif;background:linear-gradient(180deg,#071022 0%, #061423 60%);color:#e6eef6}
+    .wrap{max-width:var(--container-max);margin:28px auto;padding:20px;gap:var(--gap);display:grid;grid-template-columns:1fr;}
+
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#60a5fa);display:flex;align-items:center;justify-content:center;font-weight:700}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    /* grid */
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--gap);margin-top:16px}
+    .card{background:linear-gradient(180deg,var(--card),rgba(7,13,25,0.7));padding:14px;border-radius:var(--radius);box-shadow:0 6px 18px rgba(2,6,23,0.6);}
+
+    .stat{grid-column:span 3;display:flex;flex-direction:column;gap:8px}
+    .stat .num{font-size:20px;font-weight:700}
+    .stat .label{font-size:12px;color:var(--muted)}
+
+    .full{grid-column:span 12}
+    .half{grid-column:span 6}
+    .third{grid-column:span 4}
+    .two-third{grid-column:span 8}
+
+    /* product gallery */
+    .gallery{display:flex;flex-direction:column;gap:12px}
+    .product-list{display:flex;flex-wrap:wrap;gap:12px}
+    .product{background:var(--glass);padding:12px;border-radius:10px;width:170px;display:flex;flex-direction:column;gap:8px}
+    .product img{height:100px;object-fit:cover;border-radius:8px;background:#0b1220}
+    .product .title{font-weight:700;font-size:14px}
+    .product .meta{font-size:12px;color:var(--muted)}
+    .product .actions{display:flex;gap:8px;margin-top:6px}
+    button.btn{border:0;padding:8px 10px;border-radius:8px;font-weight:600;cursor:pointer}
+    button.primary{background:var(--accent);color:#02121a}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+
+    /* table */
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03)}
+    th{color:var(--muted);font-weight:600}
+
+    /* form */
+    .form-row{display:flex;gap:8px}
+    input,select{padding:8px;border-radius:8px;background:var(--glass-2);border:1px solid rgba(255,255,255,0.03);color:inherit}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    /* small screens */
+    @media(max-width:900px){
+      .grid{grid-template-columns:repeat(6,1fr)}
+      .stat{grid-column:span 3}
+      .half{grid-column:span 6}
+      .third{grid-column:span 6}
+      .two-third{grid-column:span 6}
+      .product{width:48%}
+    }
+    @media(max-width:480px){
+      .wrap{padding:12px}
+      .product{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">R</div>
+        <div>
+          <h1>Re:Cycle Tracker</h1>
+          <p class="lead">학생이 운영하는 업사이클링 대시보드 — 자원 수집 · 제품 · 판매 · 기부를 시각화합니다.</p>
+        </div>
+      </div>
+      <div>
+        <small class="lead">학교 프로젝트 / 샘플 데이터 기반</small>
+      </div>
+    </header>
+
+    <section class="grid">
+      <!-- summary stats -->
+      <div class="card stat">
+        <div class="num" id="stat-collected">0 개</div>
+        <div class="label">오늘 수거량</div>
+      </div>
+      <div class="card stat">
+        <div class="num" id="stat-sales">0 원</div>
+        <div class="label">누적 판매수익</div>
+      </div>
+      <div class="card stat">
+        <div class="num" id="stat-co2">0 kg CO₂</div>
+        <div class="label">절감된 CO₂(예상)</div>
+      </div>
+      <div class="card stat">
+        <div class="num" id="stat-donated">0 원</div>
+        <div class="label">누적 기부금</div>
+      </div>
+
+      <!-- product gallery -->
+      <div class="card full">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>제품 갤러리</strong>
+          <div style="display:flex;gap:8px">
+            <button class="btn ghost" id="btn-seed">샘플데이터 초기화</button>
+            <button class="btn primary" id="btn-open-form">제품 등록</button>
+          </div>
+        </div>
+
+        <div class="gallery">
+          <div class="product-list" id="product-list"></div>
+
+          <!-- register form (toggle) -->
+          <div id="form-area" style="display:none;margin-top:12px">
+            <div class="card">
+              <div style="font-weight:700;margin-bottom:8px">새 제품 등록</div>
+              <div class="form-row">
+                <input id="p-title" placeholder="제품명" />
+                <select id="p-category"><option value="플라스틱">플라스틱</option><option value="종이">종이</option><option value="섬유">섬유</option></select>
+                <input id="p-material" placeholder="재료 출처(예: 병뚜껑 20개)" />
+              </div>
+              <div class="form-row" style="margin-top:8px">
+                <input id="p-price" placeholder="판매가격(원)" type="number" />
+                <input id="p-img" placeholder="이미지 URL(선택)" />
+                <button class="btn primary" id="btn-add">추가</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- sales & donation -->
+      <div class="card half">
+        <strong>판매 내역</strong>
+        <div style="margin-top:10px;max-height:240px;overflow:auto">
+          <table id="sales-table">
+            <thead><tr><th>제품</th><th>가격</th><th>판매일</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn primary" id="btn-sell-sample">랜덤 판매 발생</button>
+          <button class="btn ghost" id="btn-clear-sales">판매기록 초기화</button>
+        </div>
+      </div>
+
+      <!-- leaderboard -->
+      <div class="card half">
+        <strong>참여 랭킹</strong>
+        <div style="margin-top:10px" id="leaderboard-area">
+          <table id="leaderboard-table"><thead><tr><th>학생</th><th>기여도</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <input id="member-name" placeholder="학생 이름 입력" />
+          <button class="btn primary" id="btn-add-member">참여 추가</button>
+        </div>
+      </div>
+
+      <!-- chart area -->
+      <div class="card two-third">
+        <strong>수거량 추이</strong>
+        <canvas id="collected-chart" style="margin-top:12px"></canvas>
+      </div>
+
+      <div class="card third">
+        <strong>제품 비중</strong>
+        <canvas id="category-chart" style="margin-top:12px"></canvas>
+      </div>
+
+      <!-- debug / export -->
+      <div class="card full">
+        <strong>데이터 관리</strong>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <button class="btn ghost" id="btn-export">데이터 내보내기 (.json)</button>
+          <button class="btn ghost" id="btn-import">데이터 가져오기</button>
+          <input id="import-file" type="file" style="display:none" accept="application/json"/>
+          <button class="btn ghost" id="btn-reset">모든 데이터 초기화</button>
+        </div>
+        <p style="margin-top:10px;color:var(--muted);font-size:13px">팁: 로컬스토리지에 저장됩니다. 다른 컴퓨터와 공유하려면 내보내기/가져오기 기능을 사용하세요.</p>
+      </div>
+
+    </section>
+
+    <footer>만든이: Re:Cycle Project · 샘플 웹앱 — 실제 운영 전 데이터 검증 필요</footer>
+  </div>
+
+  <script>
+    /* ---------- 간단한 데이터 모델 (로컬스토리지 기반) ---------- */
+    const STORAGE_KEY = 'recycle-tracker-v1';
+
+    function defaultData(){
+      return {
+        stats:{collectedToday:48,salesTotal:58000,co2SavedKg:2.1,donated:12000},
+        collectedSeries: [5,8,12,7,10,6,48], // 일주일 예시
+        products:[
+          {id:1,title:'플라스틱 키링',category:'플라스틱',material:'병뚜껑 15개',price:2000,img:''},
+          {id:2,title:'종이컵 펜꽂이',category:'종이',material:'종이컵 8개',price:1500,img:''},
+          {id:3,title:'우유팩 카드지갑',category:'종이',material:'우유팩 4개',price:3500,img:''}
+        ],
+        sales: [ {pid:1,price:2000,date:Date.now()-86400000}, {pid:2,price:1500,date:Date.now()-3600*1000} ],
+        members: [ {name:'지수',score:5},{name:'민수',score:3},{name:'혜진',score:2} ]
+      }
+    }
+
+    function loadData(){
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return defaultData();
+      try{ return JSON.parse(raw); }catch(e){ return defaultData(); }
+    }
+    function saveData(d){ localStorage.setItem(STORAGE_KEY,JSON.stringify(d)) }
+
+    let DATA = loadData();
+
+    /* ---------- UI 렌더링 ---------- */
+    const el = id=>document.getElementById(id);
+    function formatCurrency(n){ return n.toLocaleString() + ' 원' }
+    function formatCount(n){ return n + ' 개' }
+
+    function renderStats(){
+      el('stat-collected').textContent = formatCount(DATA.stats.collectedToday);
+      el('stat-sales').textContent = formatCurrency(DATA.stats.salesTotal);
+      el('stat-co2').textContent = DATA.stats.co2SavedKg + ' kg CO₂';
+      el('stat-donated').textContent = formatCurrency(DATA.stats.donated);
+    }
+
+    function renderProducts(){
+      const container = el('product-list'); container.innerHTML='';
+      DATA.products.forEach(p=>{
+        const box = document.createElement('div'); box.className='product card';
+        box.innerHTML = `
+          <img src="${p.img || 'https://picsum.photos/seed/'+p.id+'/300/200'}" alt="${p.title}" />
+          <div class="title">${p.title}</div>
+          <div class="meta">${p.category} · ${p.material}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700">${p.price.toLocaleString()}원</div>
+            <div class="actions">
+              <button class="btn primary" data-sell="${p.id}">판매</button>
+              <button class="btn ghost" data-remove="${p.id}">삭제</button>
+            </div>
+          </div>`;
+        container.appendChild(box);
+      })
+
+      // attach events
+      container.querySelectorAll('[data-sell]').forEach(b=>b.addEventListener('click',e=>{
+        const pid = Number(e.currentTarget.dataset.sell); recordSale(pid);
+      }));
+      container.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',e=>{
+        const pid = Number(e.currentTarget.dataset.remove); removeProduct(pid);
+      }));
+    }
+
+    function renderSales(){
+      const tbody = el('sales-table').querySelector('tbody'); tbody.innerHTML='';
+      DATA.sales.slice().reverse().forEach(s=>{
+        const p = DATA.products.find(x=>x.id===s.pid) || {title:'(삭제된 제품)'};
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.title}</td><td>${s.price.toLocaleString()}원</td><td>${new Date(s.date).toLocaleString()}</td>`;
+        tbody.appendChild(tr);
+      })
+    }
+
+    function renderLeaderboard(){
+      const tbody = el('leaderboard-table').querySelector('tbody'); tbody.innerHTML='';
+      DATA.members.sort((a,b)=>b.score-a.score).forEach(m=>{
+        const tr=document.createElement('tr'); tr.innerHTML=`<td>${m.name}</td><td>${m.score}</td>`; tbody.appendChild(tr);
+      })
+    }
+
+    /* ---------- actions ---------- */
+    function addProduct(p){
+      p.id = Date.now(); DATA.products.push(p); saveData(DATA); refreshAll();
+    }
+    function removeProduct(pid){
+      DATA.products = DATA.products.filter(x=>x.id!==pid); saveData(DATA); refreshAll();
+    }
+    function recordSale(pid){
+      const p = DATA.products.find(x=>x.id===pid); if(!p) return;
+      DATA.sales.push({pid:pid,price:p.price,date:Date.now()});
+      // update stats: salesTotal and donated 10%
+      DATA.stats.salesTotal += p.price; DATA.stats.donated += Math.round(p.price*0.1);
+      // collectedToday decrease simulated
+      DATA.stats.collectedToday = Math.max(0, DATA.stats.collectedToday - 1);
+      saveData(DATA); refreshAll();
+    }
+
+    function addMember(name){
+      const found = DATA.members.find(m=>m.name===name);
+      if(found) found.score += 1; else DATA.members.push({name:name,score:1});
+      saveData(DATA); refreshAll();
+    }
+
+    /* ---------- charts ---------- */
+    let collectedChart, categoryChart;
+    function initCharts(){
+      const ctx = el('collected-chart').getContext('2d');
+      collectedChart = new Chart(ctx,{
+        type:'line',data:{labels:['-6d','-5d','-4d','-3d','-2d','-1d','오늘'],datasets:[{label:'수거량(개)',data:DATA.collectedSeries,borderWidth:2,fill:true,tension:0.3}]},options:{plugins:{legend:{display:false}}}
+      });
+
+      const ctx2 = el('category-chart').getContext('2d');
+      const counts = countByCategory();
+      categoryChart = new Chart(ctx2,{type:'doughnut',data:{labels:Object.keys(counts),datasets:[{data:Object.values(counts)}]},options:{plugins:{legend:{position:'bottom'}}}});
+    }
+    function updateCharts(){
+      if(collectedChart){ collectedChart.data.datasets[0].data = DATA.collectedSeries; collectedChart.update(); }
+      if(categoryChart){ categoryChart.data = {labels:Object.keys(countByCategory()),datasets:[{data:Object.values(countByCategory())}]}; categoryChart.update(); }
+    }
+
+    function countByCategory(){
+      const map = {};
+      DATA.products.forEach(p=>{ map[p.category] = (map[p.category]||0)+1 });
+      if(Object.keys(map).length===0) map['없음'] = 1;
+      return map;
+    }
+
+    /* ---------- utilities ---------- */
+    function refreshAll(){ renderStats(); renderProducts(); renderSales(); renderLeaderboard(); updateCharts(); }
+
+    /* ---------- initial setup ---------- */
+    document.addEventListener('DOMContentLoaded',()=>{
+      // wire buttons
+      el('btn-open-form').addEventListener('click',()=>{ el('form-area').style.display = el('form-area').style.display==='none'? 'block':'none' });
+      el('btn-add').addEventListener('click',()=>{
+        const t=el('p-title').value.trim(), cat=el('p-category').value, mat=el('p-material').value.trim(), price=Number(el('p-price').value)||0,img=el('p-img').value.trim();
+        if(!t || price<=0){ alert('제품명과 가격을 정확히 입력해주세요.'); return; }
+        addProduct({title:t,category:cat,material:mat,price:price,img:img});
+        el('p-title').value=''; el('p-material').value=''; el('p-price').value=''; el('p-img').value='';
+      });
+
+      el('btn-sell-sample').addEventListener('click',()=>{
+        if(DATA.products.length===0){ alert('제품이 없습니다. 먼저 제품을 등록하세요.'); return; }
+        const pid = DATA.products[Math.floor(Math.random()*DATA.products.length)].id; recordSale(pid);
+      });
+
+      el('btn-seed').addEventListener('click',()=>{ if(confirm('샘플데이터로 초기화하시겠습니까? 모든 로컬 데이터가 덮어씌워집니다.')){ DATA = defaultData(); saveData(DATA); refreshAll(); } });
+      el('btn-clear-sales').addEventListener('click',()=>{ DATA.sales=[]; DATA.stats.salesTotal=0; DATA.stats.donated=0; saveData(DATA); refreshAll(); });
+      el('btn-add-member').addEventListener('click',()=>{ const name=el('member-name').value.trim(); if(name) addMember(name); el('member-name').value=''; });
+
+      // export / import
+      el('btn-export').addEventListener('click',()=>{
+        const blob = new Blob([JSON.stringify(DATA, null, 2)],{type:'application/json'});
+        const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='recycle-data.json'; a.click(); URL.revokeObjectURL(url);
+      });
+      el('btn-import').addEventListener('click',()=> el('import-file').click());
+      el('import-file').addEventListener('change',e=>{
+        const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = ev=>{ try{ DATA = JSON.parse(ev.target.result); saveData(DATA); refreshAll(); alert('데이터 가져오기 완료'); }catch(err){ alert('유효하지 않은 파일입니다.'); } }; reader.readAsText(f);
+      });
+      el('btn-reset').addEventListener('click',()=>{ if(confirm('모든 데이터를 초기화하시겠습니까?')){ localStorage.removeItem(STORAGE_KEY); DATA = defaultData(); saveData(DATA); refreshAll(); } });
+
+      // init charts & render
+      initCharts(); refreshAll();
+    });
+  </script>
+</body>
+</html>
